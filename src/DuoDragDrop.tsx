@@ -11,6 +11,8 @@ import type { DuoAnimatedStyleWorklet, OnDropFunction } from "./types";
 import WordContext from "./WordContext";
 
 export interface DuoDragDropProps {
+  /** List of words that should be in the "Answer" pile */
+  target: string[];
   /** List of words */
   words: string[];
   /** Re-renders the words when this value changes. */
@@ -51,6 +53,8 @@ export interface DuoDragDropProps {
   onReady?: (ready: boolean) => void;
   /** Called when a user taps or drags a word to its destination */
   onDrop?: OnDropFunction;
+
+  wordsOfKnowledge: string[]
 }
 
 export type DuoDragDropRef = {
@@ -74,6 +78,7 @@ export type DuoDragDropRef = {
 
 const DuoDragDrop = React.forwardRef<DuoDragDropRef, DuoDragDropProps>((props, ref) => {
   const {
+    target,
     words,
     extraData,
     renderWord,
@@ -88,21 +93,24 @@ const DuoDragDrop = React.forwardRef<DuoDragDropRef, DuoDragDropProps>((props, r
     animatedStyleWorklet,
     onReady,
     onDrop,
+    wordsOfKnowledge,
   } = props;
   const lineHeight = props.lineHeight || wordHeight * 1.2;
   const lineGap = lineHeight - wordHeight;
   const [layout, setLayout] = useState<{ numLines: number; wordStyles: StyleProp<ViewStyle>[] } | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
+  console.log(words)
+
   const wordElements = useMemo(() => {
     return words.map((word, index) => (
-      <WordContext.Provider key={`${word}-${index}`} value={{ wordHeight, wordGap, text: word }}>
-        {renderWord?.(word, index) || <Word />}
+      <WordContext.Provider key={`${word}-${index}`} value={{ wordHeight, wordGap, text: word, wordsOfKnowledge: wordsOfKnowledge }}>
+        {renderWord?.(word, index) || <Word/>}
       </WordContext.Provider>
     ));
     // Note: "extraData" provided here is used to force a re-render when the words change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [words, wordHeight, wordGap, extraData, renderWord]);
+  }, [words, wordHeight, wordGap, extraData, renderWord, wordsOfKnowledge]);
 
   const offsets = words.map(() => ({
     order: useSharedValue(0),
@@ -155,7 +163,53 @@ const DuoDragDrop = React.forwardRef<DuoDragDropRef, DuoDragDropProps>((props, r
         for (let i = 0; i < newOffsets.length; i++) {
           offsets[i].order.value = newOffsets[i];
         }
-        calculateLayout(offsets, containerWidth, wordHeight, wordGap, lineGap, rtl);
+        setTimeout(() => calculateLayout(offsets, containerWidth, wordHeight, wordGap, lineGap, rtl), 16);
+      })();
+    },
+    reorderWords: () => {
+      // Step 1: Create a mapping of target words and their desired order
+      const targetMap = new Map(target.map((word, index) => [word, index]));
+
+      // Step 2: Identify words in the bank that should be in answered
+      const wordsInBank: string[] = [];
+      const wordsInAnswered: string[] = [];
+      offsets.forEach((offset, index) => {
+        const word = words[index];
+        if (offset.order.value === -1) {
+          wordsInBank.push(word);
+        } else {
+          wordsInAnswered.push(word);
+        }
+      });
+
+      // Step 3: Fill missing words from the bank to answeredWords
+      const completeAnsweredWords = [...wordsInAnswered];
+      target.forEach(word => {
+        if (
+          !completeAnsweredWords.includes(word) &&
+          wordsInBank.includes(word)
+        ) {
+          completeAnsweredWords.push(word);
+        }
+      });
+
+      // Step 4: Create an array with the new orders for each word
+      const newOrders = words.map(word => targetMap.get(word) ?? -1);
+
+      // Step 5: Update the order of each word in offsets based on the new orders
+      runOnUI(() => {
+        for (let i = 0; i < offsets.length; i++) {
+          offsets[i].order.value = newOrders[i];
+        }
+
+        calculateLayout(
+          offsets,
+          containerWidth,
+          wordHeight,
+          wordGap,
+          lineGap,
+          rtl,
+        );
       })();
     },
   }));
@@ -217,7 +271,7 @@ const DuoDragDrop = React.forwardRef<DuoDragDropRef, DuoDragDropProps>((props, r
     <View style={styles.container}>
       <LinesComponent numLines={idealNumLines} containerHeight={linesContainerHeight} lineHeight={lineHeight} />
       <View style={{ minHeight: wordBankHeight }} />
-      {wordElements.map((child, index) => (
+      {wordElements.map((child, index) => ( 
         <Fragment key={`${words[index]}-f-${index}`}>
           {renderPlaceholder === null ? null : <PlaceholderComponent style={wordStyles[index] as any} />}
           <SortableWord
