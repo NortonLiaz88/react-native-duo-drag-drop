@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useMemo } from "react";
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import WordContext from "./WordContext";
 import { colors } from "./colors";
@@ -6,10 +6,16 @@ import { colors } from "./colors";
 export interface WordProps {
   containerStyle?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  isErrored?: boolean; // Adicionando a propriedade isErrored
+  isCorrect?: boolean; // Adicionando a propriedade isErrored
 }
 
-export default function Word({ containerStyle, textStyle }: WordProps) {
+const textColor = '#fff'
+
+export default function Word({ containerStyle, textStyle, isErrored, isCorrect}: WordProps) {
   const { wordHeight, text, wordGap, wordsOfKnowledge } = useContext(WordContext);
+
+  // Define a cor do texto com base na propriedade isErrored
 
   return (
     <View
@@ -17,11 +23,11 @@ export default function Word({ containerStyle, textStyle }: WordProps) {
     >
       {(text.startsWith("*") || text.endsWith("*")) || text.includes("*") ||
         (wordsOfKnowledge?.some(word => word === text.replace(/\*/g, ''))) ? (
-        <Text style={[{ color: '#1EA0E7'}, styles.text]} allowFontScaling={false} numberOfLines={1}>
+        <Text style={[{ color: isErrored || isCorrect ? textColor : '#1EA0E7' }, styles.text]} allowFontScaling={false} numberOfLines={1}>
           {text.replace(/\*/g, '')}
         </Text> 
       ):(
-        <Text style={[{ color: '#fff'}, styles.text, textStyle]} allowFontScaling={false} numberOfLines={1}>
+        <Text style={[styles.text, textStyle, { color:  textColor}]} allowFontScaling={false} numberOfLines={1}>
           {text}
         </Text>
       )}
