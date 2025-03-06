@@ -1,4 +1,4 @@
-import { useContext, useMemo } from "react";
+import { useContext } from "react";
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import WordContext from "./WordContext";
 import { colors } from "./colors";
