@@ -54,7 +54,7 @@ export interface DuoDragDropProps {
   /** Called when a user taps or drags a word to its destination */
   onDrop?: OnDropFunction;
 
-  wordsOfKnowledge: string[]
+  wordsOfKnowledge: string[];
 }
 
 export type DuoDragDropRef = {
@@ -100,12 +100,15 @@ const DuoDragDrop = React.forwardRef<DuoDragDropRef, DuoDragDropProps>((props, r
   const [layout, setLayout] = useState<{ numLines: number; wordStyles: StyleProp<ViewStyle>[] } | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  console.log(words)
+  console.log(words);
 
   const wordElements = useMemo(() => {
     return words.map((word, index) => (
-      <WordContext.Provider key={`${word}-${index}`} value={{ wordHeight, wordGap, text: word, wordsOfKnowledge: wordsOfKnowledge }}>
-        {renderWord?.(word, index) || <Word/>}
+      <WordContext.Provider
+        key={`${word}-${index}`}
+        value={{ wordHeight, wordGap, text: word, wordsOfKnowledge: wordsOfKnowledge }}
+      >
+        {renderWord?.(word, index) || <Word />}
       </WordContext.Provider>
     ));
     // Note: "extraData" provided here is used to force a re-render when the words change.
@@ -184,17 +187,14 @@ const DuoDragDrop = React.forwardRef<DuoDragDropRef, DuoDragDropProps>((props, r
 
       // Step 3: Fill missing words from the bank to answeredWords
       const completeAnsweredWords = [...wordsInAnswered];
-      target.forEach(word => {
-        if (
-          !completeAnsweredWords.includes(word) &&
-          wordsInBank.includes(word)
-        ) {
+      target.forEach((word) => {
+        if (!completeAnsweredWords.includes(word) && wordsInBank.includes(word)) {
           completeAnsweredWords.push(word);
         }
       });
 
       // Step 4: Create an array with the new orders for each word
-      const newOrders = words.map(word => targetMap.get(word) ?? -1);
+      const newOrders = words.map((word) => targetMap.get(word) ?? -1);
 
       // Step 5: Update the order of each word in offsets based on the new orders
       runOnUI(() => {
@@ -202,14 +202,30 @@ const DuoDragDrop = React.forwardRef<DuoDragDropRef, DuoDragDropProps>((props, r
           offsets[i].order.value = newOrders[i];
         }
 
-        calculateLayout(
-          offsets,
-          containerWidth,
-          wordHeight,
-          wordGap,
-          lineGap,
-          rtl,
-        );
+        calculateLayout(offsets, containerWidth, wordHeight, wordGap, lineGap, rtl);
+      })();
+    },
+
+    reorderOneWord: () => {
+      // Cria um array para rastrear índices já usados no target
+      const usedIndices = new Array(target.length).fill(false);
+      const newOrders = words.map((word) => {
+        // Encontra a primeira ocorrência no target não utilizada
+        for (let i = 0; i < target.length; i++) {
+          if (target[i] === word && !usedIndices[i]) {
+            usedIndices[i] = true;
+            return i;
+          }
+        }
+        return -1; // Letra não encontrada ou já usada
+      });
+
+      // Atualiza as ordens e recalcula o layout
+      runOnUI(() => {
+        for (let i = 0; i < offsets.length; i++) {
+          offsets[i].order.value = newOrders[i];
+        }
+        calculateLayout(offsets, containerWidth, wordHeight, wordGap, lineGap, rtl);
       })();
     },
   }));
@@ -271,7 +287,7 @@ const DuoDragDrop = React.forwardRef<DuoDragDropRef, DuoDragDropProps>((props, r
     <View style={styles.container}>
       <LinesComponent numLines={idealNumLines} containerHeight={linesContainerHeight} lineHeight={lineHeight} />
       <View style={{ minHeight: wordBankHeight }} />
-      {wordElements.map((child, index) => ( 
+      {wordElements.map((child, index) => (
         <Fragment key={`${words[index]}-f-${index}`}>
           {renderPlaceholder === null ? null : <PlaceholderComponent style={wordStyles[index] as any} />}
           <SortableWord
